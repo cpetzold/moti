@@ -4,16 +4,16 @@
   (update [this timer state])
   (display [this timer state]))
 
-(defn update-velocity [entity]
+(defn update-velocity [entity dt]
   (update-in
    entity [:vel]
    (fn [vel]
      (->> vel
-         (map + (:acc entity))
-         (map #(* 0.95 %))))))
+          (map (fn [acc vel] (+ vel (* acc dt))) (:acc entity))
+          (map #(* 0.99 %))))))
 
-(defn update-position [entity]
-  (let [entity (update-velocity entity)]
+(defn update-position [entity dt]
+  (let [entity (update-velocity entity dt)]
     (update-in
      entity [:pos]
      #(map + % (:vel entity)))))
