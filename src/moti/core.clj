@@ -4,7 +4,9 @@
    [penumbra.opengl :as gl]
    [penumbra.opengl.effects :as effects]
    [penumbra.text :as text]
-   [moti.entity :as entity])
+   [moti.vector :as vector]
+   [moti.entity :as entity]
+   [moti.collision :as collision])
   (:import
    [org.lwjgl.opengl DisplayMode]))
 
@@ -20,14 +22,22 @@
      (dec (double (* 2 (/ c d)))))
    xy dim))
 
-(defn draw-rectangle [pos [w h]]
+(defn draw-vector [pos v]
   (gl/push-matrix
    (apply gl/translate pos)
-   (gl/draw-quads
-    (doseq [[x y] [[0 0] [w 0] [w h] [0 h]]]
-      (gl/vertex x y)))))
+   (gl/draw-lines
+    (gl/vertex 0 0)
+    (apply gl/vertex v))))
 
-(defrecord Player [acc vel pos]
+(defn draw-rectangle [pos dim]
+  (let [[hw hh] (map #(/ % 2) dim)]
+    (gl/push-matrix
+     (apply gl/translate pos)
+     (gl/draw-quads
+      (doseq [[x y] [[(- hw) hh] [hw hh] [hw (- hh)] [(- hw) (- hh)]]]
+        (gl/vertex x y))))))
+
+(defrecord Player [acc vel pos dim]
   entity/PEntity
   (update [this dt state]
     (-> this
@@ -38,18 +48,19 @@
             :else 0)
            (cond
             (app/key-pressed? :up) -30
+            (app/key-pressed? :down) 30
             :else 20)])
         (entity/update-position dt)))
   
   (display [this dt state]
     (gl/color 0 1 0)
-    (draw-rectangle pos [12 24])))
+    (draw-rectangle pos dim)))
 
 (defrecord Wall [pos dim]
   entity/PEntity
   (update [this dt state] this)
   (display [this dt state]
-    (gl/color 1 1 1)
+    (gl/color 0.2 0.2 0.2)
     (draw-rectangle pos dim)))
 
 (defn display-entities [dt state]
@@ -61,8 +72,29 @@
   (display-entities dt state)
   (app/repaint!))
 
+(defn collide [a b]
+  (let [[px py] (collision/aabb a b)]
+    (if (and px py)
+      (let [horizontal (< (Math/abs px) (Math/abs py))]
+        (-> a
+            (update-in
+             [:vel]
+             (fn [[vx vy]]
+               (if horizontal
+                 [0 vy]
+                 [vx 0])))
+            (update-in
+             [:pos]
+             (fn [[x y]]
+               (if horizontal
+                 [(+ x px) y]
+                 [x (- y py)])))))
+      a)))
+
 (defn update-entities [entities dt state]
-  (map #(entity/update % dt state) entities))
+  (-> (map #(entity/update % dt state) entities)
+      vec
+      (update-in [1] #(collide % (nth entities 0)))))
 
 (defn update [[dt t] state]
   (-> state
@@ -83,12 +115,17 @@
 
 (defn init-state []
   {:entities
-   [(Player. [0 0] [0 0] [100 100])
-    (Wall. [0 500] [800 100])]})
+   [(Wall. [400 550] [800 100])
+    (Player. [0 0] [0 0] [400 300] [12 24])]})
+
+(defn jump [state]
+  (println (get-in state [:entities 1 :vel]))
+  (update-in state [:entities 1 :vel] (fn [[vx vy]] [vx -10])))
 
 (defn key-press [key state]
   (case key
     "r" (init-state)
+    " " (jump state)
     state))
 
 (defn start []
