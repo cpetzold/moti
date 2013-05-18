@@ -1,25 +1,22 @@
-(ns moti.collision)
+(ns moti.collision
+  (:require
+   [moti.vector :as vector]
+   [moti.entity :as entity]))
 
-(defn position-delta [a b]
-  (->> (map :pos [a b])
-       (apply map -)
-       #_(map #(Math/abs %))))
+(defn overlap [[min1 max1] [min2 max2]]
 
-(defn half-dimensions [entity]
-  (map #(/ % 2) (:dim entity)))
+  )
 
-(defn aabb [a b]
-  (let [pos-delta (position-delta a b)
-        half-dims (->> (map half-dimensions [a b])
-                       (apply interleave)
-                       (partition 2))]
-    #_(println pos-delta)
-    (map
-     (fn [delta [d1 d2]]
-       (let [s (+ d1 d2)]
-         (when (pos? (- s (Math/abs delta)))
-           (if (pos? delta)
-             (- delta s)
-             (+ s delta)))))
-     pos-delta
-     half-dims)))
+(defn project-vertices [axis vertices]
+  (->> vertices
+       (map #(vector/projection % axis))
+       (sort-by vector/length)
+       #_((juxt first last))))
+
+(defn sat [a b]
+  (let [verts (map entity/vertices [a b])
+        axes (->> verts (mapcat entity/axes) distinct)]
+    (for [axis axes]
+      (->> verts
+           (map #(project-vertices axis %))
+           (apply overlap)))))

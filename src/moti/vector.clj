@@ -14,3 +14,17 @@
     (if (zero? len)
       [0 0]
       (map #(/ % len) a))))
+
+(defn scalar-projection [a b]
+  (let [len (length b)]
+    (if (zero? len)
+      0
+      (/ (dotprod a b) len))))
+
+(defn projection [a b]
+  (let [b-len (length b)]
+    (if (zero? b-len)
+      [0 0]
+      (map *
+           (repeat (scalar-projection a b))
+           (map / b (repeat b-len))))))

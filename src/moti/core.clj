@@ -1,4 +1,5 @@
 (ns moti.core
+  (:use plumbing.core)
   (:require
    [penumbra.app :as app]
    [penumbra.opengl :as gl]
@@ -49,9 +50,9 @@
            (cond
             (app/key-pressed? :up) -30
             (app/key-pressed? :down) 30
-            :else 20)])
+            :else 30)])
         (entity/update-position dt)))
-  
+
   (display [this dt state]
     (gl/color 0 1 0)
     (draw-rectangle pos dim)))
@@ -70,26 +71,24 @@
 (defn display [[dt t] state]
   (text/write-to-screen (format "%s" (int (/ 1 dt))) 10 10)
   (display-entities dt state)
+  (let [center (map #(/ % 2) [1024 768])
+        player (get-in state [:entities 1])
+        pos-from-center (map - (:pos player) center)
+        axes (->> player entity/vertices entity/axes)]
+    (gl/color 0 0 1)
+    (draw-vector center pos-from-center)
+    (doseq [axis axes]
+      (gl/color 1 0 0)
+      (draw-vector center (map #(* 1000 %) axis))
+      (gl/color 0 1 0)
+      (draw-vector center (vector/projection pos-from-center axis))))
   (app/repaint!))
 
 (defn collide [a b]
-  (let [[px py] (collision/aabb a b)]
-    (if (and px py)
-      (let [horizontal (< (Math/abs px) (Math/abs py))]
-        (-> a
-            (update-in
-             [:vel]
-             (fn [[vx vy]]
-               (if horizontal
-                 [0 vy]
-                 [vx 0])))
-            (update-in
-             [:pos]
-             (fn [[x y]]
-               (if horizontal
-                 [(+ x px) y]
-                 [x (- y py)])))))
-      a)))
+  (let [overlap (collision/sat a b)]
+    (when (app/key-pressed? :up)
+      (clojure.pprint/pprint overlap))
+    a))
 
 (defn update-entities [entities dt state]
   (-> (map #(entity/update % dt state) entities)
@@ -102,7 +101,7 @@
 
 (defn init [state]
   (app/display-mode!
-   (get-display-mode {:resolution [800 600]}))
+   (get-display-mode {:resolution [1024 768]}))
   (app/title! "Moti")
   (app/vsync! true)
   state)
@@ -115,12 +114,11 @@
 
 (defn init-state []
   {:entities
-   [(Wall. [400 550] [800 100])
-    (Player. [0 0] [0 0] [400 300] [12 24])]})
+   [(Wall. [512 768] [1024 100])
+    (Player. [0 0] [0 0] [512 0] [12 24])]})
 
 (defn jump [state]
-  (println (get-in state [:entities 1 :vel]))
-  (update-in state [:entities 1 :vel] (fn [[vx vy]] [vx -10])))
+  (update-in state [:entities 1 :vel] (fn [[vx vy]] [vx (- vy 20)])))
 
 (defn key-press [key state]
   (case key
@@ -140,5 +138,5 @@
 (comment
 
   (future (start))
-  
-)
+
+  )
