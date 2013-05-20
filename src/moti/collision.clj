@@ -29,7 +29,6 @@
                         repeat
                         (map * axis)))]
     (when (every? (fn [v] (some #(not (zero? %)) v)) overlaps)
-      (println overlaps)
       (->> overlaps
            (sort-by vector/length)
            first))))

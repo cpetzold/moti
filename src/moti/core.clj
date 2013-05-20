@@ -8,7 +8,8 @@
    [moti.vector :as vector]
    [moti.draw :as draw]
    [moti.entity :as entity]
-   [moti.collision :as collision])
+   [moti.collision :as collision]
+   [moti.tilemap :as tilemap])
   (:import
    [org.lwjgl.opengl DisplayMode]))
 
@@ -39,27 +40,17 @@
            (cond
             (app/key-pressed? :up) -30
             (app/key-pressed? :down) 30
-            :else 0)])
+            :else 30)])
         (entity/update-position dt)))
 
   (display [this dt state]
     (gl/color 0 1 0)
     (draw/rectangle pos dim)))
 
-(defrecord Wall [pos dim]
-  entity/PEntity
-  (update [this dt state] this)
-  (display [this dt state]
-    (gl/color 0.2 0.2 0.2)
-    (draw/rectangle pos dim)))
-
-(defn display-entities [dt state]
-  (doseq [entity (:entities state)]
-    (entity/display entity dt state)))
-
 (defn display [[dt t] state]
   (text/write-to-screen (format "%s" (int (/ 1 dt))) 10 10)
-  (display-entities dt state)
+  (doseq [[_ e] (select-keys state [:player :tilemap])]
+    (entity/display e dt state))
   (app/repaint!))
 
 (defn collide [a b]
@@ -71,16 +62,11 @@
           (update-in [:vel] #(map * % vel-halt)))
       a)))
 
-(defn update-entities [entities dt state]
-  (-> (map #(entity/update % dt state) entities)
-      vec
-      (update-in [1] #(collide % (nth entities 0)))))
-
 (defn update [[dt t] state]
   (if (:paused state)
     state
     (-> state
-        (update-in [:entities] #(update-entities % dt state)))))
+        (update-in [:player] #(entity/update % dt state)))))
 
 (defn init [state]
   (app/display-mode!
@@ -97,12 +83,11 @@
 
 (defn init-state []
   {:paused false
-   :entities
-   [(Wall. [512 400] [300 100])
-    (Player. [0 0] [0 0] [512 0] [12 24])]})
+   :tilemap (tilemap/make-tilemap tilemap/+test+ 64)
+   :player (Player. [0 0] [0 0] [512 0] [12 24])})
 
 (defn jump [state]
-  (update-in state [:entities 1 :vel] (fn [[vx vy]] [vx (- vy 20)])))
+  (update-in state [:player :vel] (fn [[vx vy]] [vx (- vy 20)])))
 
 (defn key-press [key state]
   (case key
