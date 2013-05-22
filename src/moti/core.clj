@@ -45,28 +45,29 @@
 
   (display [this dt state]
     (gl/color 0 1 0)
-    (draw/rectangle pos dim)))
+    (draw/rectangle pos dim))
+
+  (collision-response [this offset]
+    (if-not offset
+      this
+      (let [vel-halt (map #(if (zero? %) 1 0) offset)]
+        (-> this
+            (update-in [:pos] #(map - % offset))
+            (update-in [:vel] #(map * % vel-halt)))))))
 
 (defn display [[dt t] state]
-  (text/write-to-screen (format "%s" (int (/ 1 dt))) 10 10)
   (doseq [[_ e] (select-keys state [:player :tilemap])]
     (entity/display e dt state))
+  (text/write-to-screen (format "%s" (int (/ 1 dt))) 10 10)
   (app/repaint!))
-
-(defn collide [a b]
-  (let [overlap (collision/sat a b)
-        vel-halt (map #(if (zero? %) 1 0) overlap)]
-    (if overlap
-      (-> a
-          (update-in [:pos] #(map - % overlap))
-          (update-in [:vel] #(map * % vel-halt)))
-      a)))
 
 (defn update [[dt t] state]
   (if (:paused state)
     state
     (-> state
-        (update-in [:player] #(entity/update % dt state)))))
+        (update-in [:player] #(entity/update % dt state))
+        (update-in [:player] #(entity/collision-response
+                               % (entity/collision-offset (:tilemap state) %))))))
 
 (defn init [state]
   (app/display-mode!

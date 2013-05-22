@@ -5,7 +5,9 @@
 
 (defprotocol PEntity
   (update [this timer state])
-  (display [this timer state]))
+  (display [this timer state])
+  (collision-offset [this entity])
+  (collision-response [this offset]))
 
 (defn vertices [{:keys [pos dim]}]
   (let [[x y] pos
